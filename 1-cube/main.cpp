@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "colorposcube.h"
+#include "transferobj.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QMatrix4x4>
@@ -13,6 +14,8 @@
 #include <QColorDialog>
 
 #include <iostream>
+
+#include <random>
 
 //! [1]
 class CubeWindow : public OpenGLWindow
@@ -31,8 +34,8 @@ private:
     QOpenGLShaderProgram *m_program;
     int m_frame;
 
-    ColorPosCube cube1{{0., 0., 0.}, 1, GL_TRIANGLE_STRIP};
-    ColorPosCube cube2{{1., 0., 0.}, 1, GL_TRIANGLES};
+    ColorPosCube cube1{{0., 0., 0.}, 1, 16, GL_TRIANGLES};
+    //ColorPosCube cube2{{0., 0., 0.}, 1, GL_TRIANGLE_STRIP};
 };
 
 CubeWindow::CubeWindow()
@@ -47,6 +50,9 @@ int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
 
+    QWidget widget;
+    //QColor color = QColorDialog::getColor(Qt::yellow, &widget);
+    //TransferObj::getInstance().setColor(color);
     QSurfaceFormat format;
     format.setSamples(16);
     CubeWindow window;
@@ -55,9 +61,6 @@ int main(int argc, char **argv)
     window.show();
 
     window.setAnimating(true);
-
-    QWidget widget;
-    QColor color = QColorDialog::getColor(Qt::yellow, &widget);
 
     return app.exec();
 }
@@ -87,6 +90,7 @@ void CubeWindow::initialize()
 {
     m_program = new QOpenGLShaderProgram(this);
     m_program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
+    //m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, "../1-cube/shader/to_sphere.vert");
     m_program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
     m_program->link();
     m_posAttr = m_program->attributeLocation("posAttr");
@@ -98,6 +102,17 @@ void CubeWindow::initialize()
 //! [5]
 void CubeWindow::render()
 {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0., 1.);
+    if(m_frame % 10 == 0){
+        cube1.setColor(ColorPosCube::Side::FRONT, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::BACK, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::RIGHT, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::LEFT, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::DOWN, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::UP, dis(gen), dis(gen), dis(gen));
+    }
 
     const qreal retinaScale = devicePixelRatio();
     glViewport(0, 0, width() * retinaScale, height() * retinaScale);
@@ -107,10 +122,11 @@ void CubeWindow::render()
     m_program->bind();
 
     QMatrix4x4 matrix;
-    //matrix.perspective(90.0f, 16.f/9.0f, 0.1f, 100.0f);
-    //matrix.translate(0, 0, -4);
-    matrix.rotate(100.0f * m_frame / screen()->refreshRate(), 1, 0, 0);
+    matrix.perspective(90.0f, 16.f/9.0f, 0.1f, 100.0f);
+    matrix.translate(0, 0, -4);
+    //matrix.rotate(100.0f * m_frame / screen()->refreshRate(), 0, 1, 0);
     matrix.rotate(100.0f * m_frame / screen()->refreshRate(), 0, 1, 0);
+
     m_program->setUniformValue(m_matrixUniform, matrix);
 
     glVertexAttribPointer(m_posAttr, 3, GL_FLOAT, GL_FALSE, 0, cube1.getPoints());

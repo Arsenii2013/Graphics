@@ -19,6 +19,8 @@ set(PROJECT_SOURCES
         mainwindow.ui
         colorposcube.h
         colorposcube.cpp
+        transferobj.h
+        transferobj.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

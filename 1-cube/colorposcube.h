@@ -12,8 +12,12 @@ class ColorPosCube
     GLfloat *points = nullptr;
     GLfloat *colors = nullptr;
     GLenum primitive;
+    int pointsCnt;
+
+    std::vector<QVector3D> genTrianglesFrontNormalizedInZero(int pointsPerSide);
+
 public:
-    ColorPosCube(QVector3D center, GLfloat side, GLenum primitive);
+    ColorPosCube(QVector3D center, GLfloat side, int pointsPerSide, GLenum primitive);
 
     enum class Side{
         FRONT,
@@ -24,17 +28,13 @@ public:
         RIGHT,
     };
 
-    void setColor(Side side, GLfloat r, GLfloat g, GLfloat b){
+    void setColor(Side side, GLfloat r, GLfloat g, GLfloat b);
 
-    }
+    void setColor(Side side, QColor color);
 
-    void setColor(Side side, QColor color){
+    void setColor(Side side, QColor up_left, QColor up_right, QColor down_left, QColor down_right);
 
-    }
-
-    void setColor(Side side, QColor up_left, QColor up_right, QColor down_left, QColor down_right){
-
-    }
+    void setColor(GLfloat r, GLfloat g, GLfloat b);
 
     const GLfloat *getPoints(){
         return points;
