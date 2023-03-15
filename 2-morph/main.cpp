@@ -1,0 +1,148 @@
+#include "mainwindow.h"
+#include "cube.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QMatrix4x4>
+#include <QtGui/QOpenGLShaderProgram>
+#include <QtGui/QScreen>
+
+#include <QtCore/qmath.h>
+
+#include <QWidget>
+#include <QApplication>
+#include <QColorDialog>
+
+#include <iostream>
+
+#include <random>
+
+//! [1]
+class CubeWindow : public OpenGLWindow
+{
+public:
+    CubeWindow();
+
+    void initialize() override;
+    void render() override;
+
+private:
+    GLuint m_posAttr;
+    GLuint m_colAttr;
+    GLuint m_matrixUniform;
+    GLuint m_factor;
+
+    QOpenGLShaderProgram *m_program;
+    int m_frame;
+
+    ColorPosCube cube1{{0., 0., 0.}, 1, 2, GL_TRIANGLE_STRIP};
+    //ColorPosCube cube2{{0., 0., 0.}, 1, GL_TRIANGLE_STRIP};
+};
+
+CubeWindow::CubeWindow()
+        : m_program(0)
+        , m_frame(0)
+{
+}
+//! [1]
+
+//! [2]
+int main(int argc, char **argv)
+{
+    QApplication app(argc, argv);
+
+    QWidget widget;
+    //QColor color = QColorDialog::getColor(Qt::yellow, &widget);
+    //TransferObj::getInstance().setColor(color);
+    QSurfaceFormat format;
+    format.setSamples(16);
+    CubeWindow window;
+    window.setFormat(format);
+    window.resize(1920, 1080);
+    window.show();
+
+    window.setAnimating(true);
+
+    return app.exec();
+}
+//! [2]
+
+
+//! [3]
+static const char *vertexShaderSource =
+        "attribute highp vec4 posAttr;\n"
+        "attribute lowp vec4 colAttr;\n"
+        "varying lowp vec4 col;\n"
+        "uniform highp mat4 matrix;\n"
+        "void main() {\n"
+        "   col = colAttr;\n"
+        "   gl_Position = matrix * posAttr;\n"
+        "}\n";
+
+static const char *fragmentShaderSource =
+        "varying lowp vec4 col;\n"
+        "void main() {\n"
+        "   gl_FragColor = col;\n"
+        "}\n";
+//! [3]
+
+//! [4]
+void CubeWindow::initialize()
+{
+    m_program = new QOpenGLShaderProgram(this);
+    //m_program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
+    m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, "../2-morph/shaders/rotate.vsh");
+    m_program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    m_program->link();
+    m_posAttr = m_program->attributeLocation("posAttr");
+    m_colAttr = m_program->attributeLocation("colAttr");
+    m_matrixUniform = m_program->uniformLocation("matrix");
+    m_factor = m_program->uniformLocation("factor");
+}
+//! [4]
+
+//! [5]
+void CubeWindow::render()
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0., 1.);
+    if(m_frame % 10 == 0 && false){
+        cube1.setColor(ColorPosCube::Side::FRONT, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::BACK, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::RIGHT, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::LEFT, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::DOWN, dis(gen), dis(gen), dis(gen));
+        cube1.setColor(ColorPosCube::Side::UP, dis(gen), dis(gen), dis(gen));
+    }
+
+    const qreal retinaScale = devicePixelRatio();
+    glViewport(0, 0, width() * retinaScale, height() * retinaScale);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    m_program->bind();
+
+    QMatrix4x4 matrix;
+    matrix.perspective(90.0f, 16.f/9.0f, 0.1f, 100.0f);
+    matrix.translate(0, 0, -4);
+    matrix.rotate(100.0f * m_frame / screen()->refreshRate(), 0, 1, 0);
+    //matrix.rotate(100.0f * m_frame / screen()->refreshRate(), 1, 0, 0);
+    std::cout << m_frame / screen()->refreshRate() - int(m_frame / screen()->refreshRate()) << std::endl;
+
+    m_program->setUniformValue(m_matrixUniform, matrix);
+
+    if(int(m_frame / screen()->refreshRate()) % 2 == 0)
+        m_program->setUniformValue(m_factor, 3 * float(m_frame / screen()->refreshRate() - int(m_frame / screen()->refreshRate())));
+    else
+        m_program->setUniformValue(m_factor, 3 * (1.f - float(m_frame / screen()->refreshRate() - int(m_frame / screen()->refreshRate()))));
+
+    glCullFace(GL_FRONT);
+    glEnable(GL_CULL_FACE);
+
+    cube1.draw(m_posAttr, m_colAttr, this);
+
+    m_program->release();
+
+    ++m_frame;
+}
+//! [5]
